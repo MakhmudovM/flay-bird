@@ -13,104 +13,135 @@
     </style>
 </head>
 <body>
-    <a href="./another.html">GO</a>
-    <canvas id="gameCanvas" width="480" height="320"></canvas>
+    <a href="./test.html">GO</a>
+    <canvas id="gameCanvas" width="480" height="640"></canvas>
     <script>
-        // Получаем элемент canvas и его контекст
-        var canvas = document.getElementById("gameCanvas");
-        var ctx = canvas.getContext("2d");
+        document.addEventListener("DOMContentLoaded", function () {
+            var canvas = document.getElementById("gameCanvas");
+            var ctx = canvas.getContext("2d");
 
-        // Переменные для игры
-        var bird = { x: 10, y: canvas.height / 2, radius: 20, velocity: 0, gravity: 0.5 };
-        var gravity = 0.5;
-        var jumpHeight = -10;
-        var pipes = [];
+            var bird = {
+                x: 80,
+                y: canvas.height / 2,
+                radius: 20,
+                velocity: 0,
+                gravity: 0.5,
+                jumpStrength: -8,
+                alive: true,
+                color: "red"
+            };
 
-        // Функция для создания новой трубы
-        function createPipe() {
-            var pipeHeight = Math.random() * (canvas.height - 200) + 100; // случайная высота для трубы
-            pipes.push({
-                x: canvas.width,
-                y: 0,
-                height: pipeHeight
-            });
-            pipes.push({
-                x: canvas.width,
-                y: pipeHeight + 100,
-                height: canvas.height - pipeHeight - 100
-            });
-        }
+            var pipes = [];
+            var pipeGap = 150;
+            var pipeFrequency = 90;
+            var score = 0;
+            var highScore = 0;
 
-        // Функция обновления игры
-        function update() {
-            // Очистка canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Птичка падает вниз с ускорением гравитации
-            bird.velocity += gravity;
-            bird.y += bird.velocity;
-
-            // Рисуем птичку
-            ctx.beginPath();
-            ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
-            ctx.fillStyle = "red";
-            ctx.fill();
-            ctx.closePath();
-
-            // Создаем новые трубы каждые 150 кадров
-            if (frames % 150 === 0) {
-                createPipe();
-            }
-
-            // Рисуем и обновляем трубы
-            for (var i = 0; i < pipes.length; i++) {
-                var p = pipes[i];
+            function drawBird() {
                 ctx.beginPath();
-                ctx.rect(p.x, p.y, 50, p.height);
-                ctx.fillStyle = "green";
+                ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bird.color;
                 ctx.fill();
                 ctx.closePath();
-                p.x -= 2; // скорость движения трубы
+            }
 
-                // Удаляем трубу из массива, если она зашла за пределы canvas
-                if (p.x + 50 <= 0) {
-                    pipes.splice(i, 1);
-                    i--;
+            function drawPipe(pipeX, pipeY, pipeHeight) {
+                ctx.fillStyle = "green";
+                ctx.fillRect(pipeX, pipeY, 50, pipeHeight);
+            }
+
+            function drawScore() {
+                ctx.fillStyle = "#000";
+                ctx.font = "24px Arial";
+                ctx.fillText("Score: " + score, 10, 30);
+                ctx.fillText("High Score: " + highScore, 10, 60);
+            }
+
+            function update() {
+                if (!bird.alive) {
+                    return;
                 }
-            }
 
-            // Проверяем столкновение птички с трубами
-            for (var i = 0; i < pipes.length; i++) {
-                var p = pipes[i];
-                if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + 50 &&
-                    (bird.y - bird.radius < p.height || bird.y + bird.radius > p.height + 100)) {
-                    // Столкновение произошло, игра окончена
-                    alert("Game Over!");
-                    location.reload(); // Перезагрузка страницы для начала новой игры
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                bird.velocity += bird.gravity;
+                bird.y += bird.velocity;
+
+                if (bird.y - bird.radius <= 0 || bird.y + bird.radius >= canvas.height) {
+                    endGame();
                 }
+
+                if (pipes.length === 0 || pipes[pipes.length - 1].x <= canvas.width - pipeFrequency) {
+                    generatePipes();
+                }
+
+                for (var i = 0; i < pipes.length; i++) {
+                    var pipe = pipes[i];
+
+                    if (pipe.x === bird.x - 2 * bird.radius) {
+                        score++;
+                        if (score > highScore) {
+                            highScore = score;
+                        }
+                    }
+
+                    if (
+                        bird.x + bird.radius > pipe.x && bird.x - bird.radius < pipe.x + 50 &&
+                        (bird.y - bird.radius < pipe.y || bird.y + bird.radius > pipe.y + pipeGap)
+                    ) {
+                        endGame();
+                    }
+
+                    pipe.x -= 2;
+
+                    drawPipe(pipe.x, 0, pipe.topHeight);
+                    drawPipe(pipe.x, pipe.bottomY, pipe.bottomHeight);
+
+                    if (pipe.x + 50 < 0) {
+                        pipes.splice(i, 1);
+                        i--;
+                    }
+                }
+
+                drawBird();
+                drawScore();
+
+                requestAnimationFrame(update);
             }
 
-            // Проверяем, выходит ли птичка за пределы canvas
-            if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
-                // Столкновение произошло, игра окончена
-                alert("Game Over!");
-                location.reload(); // Перезагрузка страницы для начала новой игры
+            function generatePipes() {
+                var pipeY = Math.floor(Math.random() * (canvas.height - pipeGap));
+                var pipe = {
+                    x: canvas.width,
+                    topHeight: pipeY,
+                    bottomY: pipeY + pipeGap,
+                    bottomHeight: canvas.height - pipeY - pipeGap
+                };
+                pipes.push(pipe);
             }
-        }
 
-        // Обработчик нажатия на клавишу
-        document.addEventListener("keydown", function (event) {
-            if (event.keyCode === 32) { // пробел
-                bird.velocity = jumpHeight;
+            function endGame() {
+                bird.alive = false;
+                alert("Game over! Your score: " + score);
+                resetGame();
             }
-        });
 
-        // Основной игровой цикл
-        var frames = 0;
-        setInterval(function () {
+            function resetGame() {
+                bird.y = canvas.height / 2;
+                bird.velocity = 0;
+                pipes = [];
+                score = 0;
+                bird.alive = true;
+            }
+
+            document.addEventListener("keydown", function (event) {
+                if (event.keyCode === 32 && bird.alive) {
+                    bird.velocity = bird.jumpStrength;
+                }
+            });
+
             update();
-            frames++;
-        }, 1000 / 60); // 60 кадров в секунду
+        });
     </script>
 </body>
 </html>
